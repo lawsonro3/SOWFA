@@ -10,7 +10,7 @@ NWTC Design Codes DATA USE DISCLAIMER AGREEMENT that can be found at
 <https://nwtc.nrel.gov/disclaimer>.
 
 # Solvers and Codes Included:
-1. Solvers
+## Solvers
  * ABLSolver - A  solver, primarily for performing large-eddy simulation
    (LES), for computing atmospheric boundary layer turbulent flow with
    the ability to specify surface roughness, stability, and wind speed
@@ -44,36 +44,37 @@ actuator line models with any standard OpenFOAM solver, such as pisoFoam.
 
 
 
-2. Utilities
+## Utilities
  * setFieldsABL - A utility to initialize the flow field for performing
    atmospheric boundary layer LES.  With the utility, you can specify
    an initial mean profile and perturbations that accelerate the
    development of turbulence will be superimposed.  You may also
    specify the initial temperature profile and location and strength
    of the capping inversion.
-3.  Libraries
- * finiteVolume - Contains custom boundary conditions for:
-     - surface shear stress - Schumann model
-     - surface temperature flux / heating - Specify a surface cooling/heating
-       rate and the appropriate temperature flux is calculated
-     - surface velocity - For use with surface shear stress model, which
-       requires no wall-parallel velocity, but that velocity   is required for
-       specification of the gradient for the SGS model, and setting it to 
-       no-slip is not appropriate for rough walls
-     - inflow velocity - an inflow condition that applies a log-law with
-       fluctuations and drives flow to a certain speed at a specified location
-     - inflow temperature - an inflow temperature condition that attempts to
-       recreate a typical ABL potential temperature profile
-     - time varying mapped fixed value with organized random perturbations.
-       Useful for taking inflow from a mesoscale weather model and applying
-       temperature perturbations to create resolved-scale turbulence.
- * incompressible LES models:
+   
+##  Libraries
+1. finiteVolume - Contains custom boundary conditions for:
+ * surface shear stress - Schumann model
+ * surface temperature flux / heating - Specify a surface cooling/heating
+ rate and the appropriate temperature flux is calculated
+ * surface velocity - For use with surface shear stress model, which
+ requires no wall-parallel velocity, but that velocity   is required for
+ specification of the gradient for the SGS model, and setting it to
+ no-slip is not appropriate for rough walls
+ * inflow velocity - an inflow condition that applies a log-law with
+ fluctuations and drives flow to a certain speed at a specified location
+ * inflow temperature - an inflow temperature condition that attempts to
+ recreate a typical ABL potential temperature profile
+ * time varying mapped fixed value with organized random perturbations.
+ Useful for taking inflow from a mesoscale weather model and applying
+ temperature perturbations to create resolved-scale turbulence.
+2. incompressible LES models:
      * a modified version of OpenFOAM standard Smagorinsky model with Pr_t
    sensitization to atmospheric stability.
      * Deardorff-Lilly one-equation model.
      * Kosovic nonlinear backscatter anisotropy one-equation model.
      * a modified version of OpenFOAM standard dynamic Lagrangian model of
-       Meneveau et al. but  that writes out the Cs field.  Also, contains a 
+       Meneveau et al. but  that writes out the Cs field.  Also, contains a
        modified version of that same model that clips the Cs field.
 3. turbineModelsStandard - Contains the actuator line/disk turbine
    models similar to that outlined by Sorensen and Shen (2002).
@@ -126,9 +127,9 @@ as follows:
  * `example.ABL.flatTerrain.stable`
  * Uses: `ABLSolver`
 
-2. Example cases that use the actuator turbine models using the 
+2. Example cases that use the actuator turbine models using the
   windPlantSolver.<X> solvers.  These cases assume that a precursor
-  case has been run to generate inflow velocity and temperature 
+  case has been run to generate inflow velocity and temperature
   data.  Because the inflow data is large, we did not include it here.
  * `example.ALM`
  * `example.ALMAdvanced`
@@ -144,13 +145,13 @@ as follows:
 
 5. An example of using mesoscale influence to drive the atmospheric
  boundary layer LES.  This case is driven by WRF model output
- for the DOE/Sandia Scaled Wind Farm Technology (SWiFT) site in 
+ for the DOE/Sandia Scaled Wind Farm Technology (SWiFT) site in
  Lubbock, Texas.  The terrain is flat with laterally periodic
  boundaries in this example.  The case has enough WRF output
  contained in the "forcing" directory to simulate two diurnal
  cycles starting November 11, 2013 at 00:00:00 UTC.
  * `example.mesoscaleInfluence.SWiFTsiteLubbock.11Nov2013Diurnal`
-       
+
 ## Running Tutorials:
 * To run a tutorial, change to that tutorial directory and run the
 `runscript.preprocess` script to set up the mesh, etc.  Then run the
@@ -159,4 +160,3 @@ as follows:
 general file structure of a case and the various input files.  They
 can be run on a small amount of processors with coarse meshes, but if
 that is done, they will generate poor results.
-
