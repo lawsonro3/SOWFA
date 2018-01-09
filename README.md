@@ -1,5 +1,5 @@
 # Overview
-All of these files compose the current version of the SOWFA (Simulator for
+The files in this repository comprise the current version of the SOWFA (Simulator for
 Offshore Wind Farm Applications), created at the National Renewable Energy
 Laboratory (NREL).  The files are based on the OpenFOAM software and are
 either new files or modifications of files in the OpenFOAM source code
