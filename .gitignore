@@ -1,0 +1,4 @@
+# OpenFOAM compilation directories
+**/linux64GccDPOpt
+**/lnInclude
+*.dep
