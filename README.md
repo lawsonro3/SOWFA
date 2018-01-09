@@ -54,18 +54,18 @@ actuator line models with any standard OpenFOAM solver, such as pisoFoam.
    
 ##  Libraries
 1. finiteVolume - Contains custom boundary conditions for:
- * surface shear stress - Schumann model
- * surface temperature flux / heating - Specify a surface cooling/heating
+     * surface shear stress - Schumann model
+     * surface temperature flux / heating - Specify a surface cooling/heating
  rate and the appropriate temperature flux is calculated
- * surface velocity - For use with surface shear stress model, which
+     * surface velocity - For use with surface shear stress model, which
  requires no wall-parallel velocity, but that velocity   is required for
  specification of the gradient for the SGS model, and setting it to
  no-slip is not appropriate for rough walls
- * inflow velocity - an inflow condition that applies a log-law with
+     * inflow velocity - an inflow condition that applies a log-law with
  fluctuations and drives flow to a certain speed at a specified location
- * inflow temperature - an inflow temperature condition that attempts to
+     * inflow temperature - an inflow temperature condition that attempts to
  recreate a typical ABL potential temperature profile
- * time varying mapped fixed value with organized random perturbations.
+     * time varying mapped fixed value with organized random perturbations.
  Useful for taking inflow from a mesoscale weather model and applying
  temperature perturbations to create resolved-scale turbulence.
 2. incompressible LES models:
