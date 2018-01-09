@@ -9,7 +9,7 @@ to and use of SOWPA imposes obligations on the user, as set forth in the
 NWTC Design Codes DATA USE DISCLAIMER AGREEMENT that can be found at
 <https://nwtc.nrel.gov/disclaimer>.
 
-# Solvers and Codes Included:
+# Solvers and Codes Included
 ## Solvers
  * ABLSolver - A  solver, primarily for performing large-eddy simulation
    (LES), for computing atmospheric boundary layer turbulent flow with
@@ -89,7 +89,7 @@ actuator line models with any standard OpenFOAM solver, such as pisoFoam.
 7. sampling - Adds a sampling set that defines an annulus.  Useful
    for sampling annuli in rotor plane to see blade-local flow.
 
-# Installation:
+# Installation
 A. The included codes work only with the OpenFOAM CFD Toolbox.  OpenFOAM has
 not been distributed with the SOWFA package.  Please visit www.openfoam.com
 to download and install OpenFOAM.  This release of SOWFA is known to work
@@ -97,7 +97,7 @@ with up to OpenFOAM-2.4.x.  Making SOWFA work with versions 3.0 and higher
 may come in the near future.
 
 
-# Downloading and Compiling:
+# Downloading and Compiling
 1.  Make sure that you have OpenFOAM version `OpenFOAM-2.4.x` downloaded and
     compiled on your system.
 2.  Use [Git](https://git-scm.com/) to clone SOWFA from the [https://github.com/NREL/SOWFA](SOWFA GitHub
@@ -117,7 +117,7 @@ may come in the near future.
 4.  Make sure that no error messages appeared and that all libraries
     and applications are listed as "up to date."
 
-# Tutorials:
+# Tutorials
 Tutorial example cases are provide for each solver in the `SOWFA/exampleCases` folder. The available tutorials are
 as follows:
 1. Example cases for computing flat-terrain laterally periodic precursor
@@ -152,7 +152,7 @@ as follows:
  cycles starting November 11, 2013 at 00:00:00 UTC.
  * `example.mesoscaleInfluence.SWiFTsiteLubbock.11Nov2013Diurnal`
 
-## Running Tutorials:
+## Running Tutorials
 * To run a tutorial, change to that tutorial directory and run the
 `runscript.preprocess` script to set up the mesh, etc.  Then run the
 `runscript.solve.1` script to run the solver.
