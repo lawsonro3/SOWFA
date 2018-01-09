@@ -12,10 +12,13 @@ PROGRAM toof
      ! variables for using netcdf
    INCLUDE 'netcdf.inc'
    INTEGER, PARAMETER :: MAXFILES = 20
-   CHARACTER(LEN=255) :: flnm(MAXFILES),arg,outnameT,outnamePd,outnameU,outnameHFX,vname,comstr,dirpath
+   CHARACTER(LEN=255) :: flnm(MAXFILES),arg,outnameT,outnamePd,outnameU,outnameHFX,vname,comstr,dirpath,latlongpath
    CHARACTER(LEN=19)  :: Times(100),tmpstr,secstr
-   LOGICAL ic, ctrl, have_hfx, use_hfx  ! whether or not to do an IC file too
-   INTEGER it,ncid(MAXFILES),stat,iarg,narg,varid,strt(4),cnt(4),xtype,storeddim,dimids(4),natts
+   CHARACTER(LEN=NF_MAX_NAME) :: dimname
+   LOGICAL :: ic, ctrl, have_hfx, use_hfx  ! whether or not to do an IC file too
+   LOGICAL :: read_latlong ! read XLAT and XLONG from a separate file if its not in the provided solution file
+   LOGICAL :: input_rotation_angle, check_inflow
+   INTEGER :: it,ncid(MAXFILES),stat,iarg,narg,varid,strt(4),cnt(4),xtype,storeddim,dimids(4),natts,latlongid
    REAL, EXTERNAL :: finterp
    INTEGER, EXTERNAL :: sec_of_day
    LOGICAL, EXTERNAL :: valid_date
@@ -59,6 +62,10 @@ PROGRAM toof
 
    ic = .FALSE.
    use_hfx = .FALSE.
+   read_latlong = .FALSE.
+   input_rotation_angle = .FALSE.
+   check_inflow = .FALSE.
+
    it = 1
    sec_offset = 0
    sec_start =  0
@@ -89,6 +96,18 @@ PROGRAM toof
          ic = .TRUE.
        ELSE IF ( TRIM(arg) .EQ. '-qwall' ) THEN
          use_hfx = .TRUE.
+       ELSE IF ( TRIM(arg) .EQ. '-latlong' ) THEN
+         iarg = iarg + 1 
+         CALL getarg(iarg,latlongpath)
+         read_latlong = .TRUE.
+       ELSE IF ( TRIM(arg) .EQ. '-rotation' ) THEN
+         iarg = iarg + 1
+         CALL getarg(iarg,arg)
+         READ(arg,*) theta ! deg
+         theta = theta * 0.017453292519943295 ! convert to rad
+         input_rotation_angle = .TRUE.
+       ELSE IF ( TRIM(arg) .EQ. '-checkInflow' ) THEN
+         check_inflow = .TRUE.
        ENDIF
      ELSE
        nfiles = nfiles + 1
@@ -117,16 +136,35 @@ PROGRAM toof
      stat=NF_GET_ATT_REAL(ncid(i),NF_GLOBAL,'DX',dx) ; 
      IF( i .EQ. 1 ) dx_check = dx
      CALL ncderrcheck( __LINE__,stat )
-     stat = NF_GET_ATT_INT (ncid(i),NF_GLOBAL,'WEST-EAST_PATCH_END_STAG',ide)    ; ids = 1 ; 
-     IF( i .EQ. 1 ) ide_check = ide 
-     CALL ncderrcheck( __LINE__,stat )
-     stat = NF_GET_ATT_INT (ncid(i),NF_GLOBAL,'SOUTH-NORTH_PATCH_END_STAG',jde)  ; jds = 1 ; 
-     IF( i .EQ. 1 ) jde_check = jde 
-     CALL ncderrcheck( __LINE__,stat )
-     stat = NF_GET_ATT_INT (ncid(i),NF_GLOBAL,'BOTTOM-TOP_PATCH_END_STAG',kde)   ; kds = 1 ; 
-     IF( i .EQ. 1 ) kde_check = kde
-     CALL ncderrcheck( __LINE__,stat )
-     IF ( i .GT. 1 ) THEN
+!     stat = NF_GET_ATT_INT (ncid(i),NF_GLOBAL,'WEST-EAST_PATCH_END_STAG',ide)    ; ids = 1 ; 
+!     IF( i .EQ. 1 ) ide_check = ide 
+!     CALL ncderrcheck( __LINE__,stat )
+!     stat = NF_GET_ATT_INT (ncid(i),NF_GLOBAL,'SOUTH-NORTH_PATCH_END_STAG',jde)  ; jds = 1 ; 
+!     IF( i .EQ. 1 ) jde_check = jde 
+!     CALL ncderrcheck( __LINE__,stat )
+!     stat = NF_GET_ATT_INT (ncid(i),NF_GLOBAL,'BOTTOM-TOP_PATCH_END_STAG',kde)   ; kds = 1 ; 
+!     IF( i .EQ. 1 ) kde_check = kde
+!     CALL ncderrcheck( __LINE__,stat )
+
+     stat = NF_INQ_DIMID(ncid(i),'west_east_stag',dimids(1))
+     CALL ncderrcheck(__LINE__,stat)
+     stat = NF_INQ_DIMID(ncid(i),'south_north_stag',dimids(2))
+     CALL ncderrcheck(__LINE__,stat)
+     stat = NF_INQ_DIMID(ncid(i),'bottom_top_stag',dimids(3))
+     CALL ncderrcheck(__LINE__,stat)
+
+     stat = NF_INQ_DIM(ncid(i),dimids(1),dimname,ide)  ; ids = 1 ;
+     CALL ncderrcheck(__LINE__,stat)
+     stat = NF_INQ_DIM(ncid(i),dimids(2),dimname,jde)  ; jds = 1 ;
+     CALL ncderrcheck(__LINE__,stat)
+     stat = NF_INQ_DIM(ncid(i),dimids(3),dimname,kde)  ; kds = 1 ;
+     CALL ncderrcheck(__LINE__,stat)
+
+     IF ( i .EQ. 1 ) THEN
+       ide_check = ide 
+       jde_check = jde 
+       kde_check = kde
+     ELSE
        stat = 0
        IF ( dx .NE. dx_check ) THEN
          stat = 1 ; write(0,*)'DX ',TRIM(flnm(i)),' does not match ',TRIM(flnm(i))
@@ -145,15 +183,16 @@ PROGRAM toof
    ENDDO
 
    strt = 1
-   cnt(1) = 19
+  !cnt(1) = 19 ! EWQ: what is this for?
 
+   ! Get and parse the 'Times' string, e.g. '2016-11-21_06:00:00'
    stat = NF_INQ_VARID(ncid,'Times',varid) 
    CALL ncderrcheck(__LINE__,stat)
-   stat = NF_INQ_VAR(ncid,varid,vname,xtype,storeddim,dimids,natts)
+   stat = NF_INQ_VAR(ncid,varid,vname,xtype,storeddim,dimids,natts) ! output: vname,xtype,storeddim,dimids,natts
    CALL ncderrcheck(__LINE__,stat)
-   stat = NF_INQ_DIMLEN(ncid,dimids(1),cnt(1))
+   stat = NF_INQ_DIMLEN(ncid,dimids(1),cnt(1)) ! output: cnt(1)
    CALL ncderrcheck(__LINE__,stat)
-   stat = NF_INQ_DIMLEN(ncid,dimids(2),cnt(2))
+   stat = NF_INQ_DIMLEN(ncid,dimids(2),cnt(2)) ! output: cnt(2)
    CALL ncderrcheck(__LINE__,stat)
    stat = NF_GET_VARA_TEXT(ncid,varid,strt,cnt,Times)
    CALL ncderrcheck( __LINE__,stat )
@@ -164,20 +203,34 @@ PROGRAM toof
      Times(it)(i:i) = '_'
    ENDDO
 
+
    ips = ids ; ipe = ide
    jps = jds ; jpe = jde
    kps = kds ; kpe = kde
    ims = ids ; ime = ide
    jms = jds ; jme = jde
    kms = kds ; kme = kde
+   write(*,'("Dimensions: ",6(i8))') ips,ipe,jps,jpe,kps,kpe
 
    ALLOCATE(   xlat(ips:ipe-1,jps:jpe-1))
    ALLOCATE(  xlong(ips:ipe-1,jps:jpe-1))
    ctrl = .TRUE.  ! true value going in says this field is required
-   CALL getvar_real(ctrl,ncid,nfiles,'XLAT' ,xlat ,it,2,ips,ipe-1,jps,jpe-1,1,1)
-   CALL getvar_real(ctrl,ncid,nfiles,'XLONG',xlong,it,2,ips,ipe-1,jps,jpe-1,1,1)
+   IF ( read_latlong ) THEN
+     write(*,*) 'Reading latitude/longitude from ',trim(latlongpath)
+     stat = NF_OPEN(latlongpath, NF_NOWRITE, latlongid)
+     CALL ncderrcheck( __LINE__,stat )
+     ! Assume XLAT and XLONG are identical for all input files
+     CALL getvar_real(ctrl,latlongid,1,'XLAT' ,xlat ,it,2,ips,ipe-1,jps,jpe-1,1,1)
+     CALL getvar_real(ctrl,latlongid,1,'XLONG',xlong,it,2,ips,ipe-1,jps,jpe-1,1,1)
+   ELSE
+     ! Original operation
+     CALL getvar_real(ctrl,ncid,nfiles,'XLAT' ,xlat ,it,2,ips,ipe-1,jps,jpe-1,1,1)
+     CALL getvar_real(ctrl,ncid,nfiles,'XLONG',xlong,it,2,ips,ipe-1,jps,jpe-1,1,1)
+   END IF
 
-   theta = rotation_angle ( xlat,dx,ids,ide,jds,jde,ips,ipe,jps,jpe,ims,ime,jms,jme )
+   if ( .NOT. input_rotation_angle ) then
+     theta = rotation_angle ( xlat,dx,ids,ide,jds,jde,ips,ipe,jps,jpe,ims,ime,jms,jme )
+   END IF
    ! Computed theta is counterclockwise rotation in radians of the vector from X axis, so negate and
    ! convert to degrees for reporting rotation with respect to compass points
    write(*,'("WRF grid is clockwise rotated approx.",f9.5," deg. from true lat/lon. Compensating.")'),-theta*57.2957795
@@ -188,10 +241,10 @@ PROGRAM toof
    ALLOCATE(   pb(ips:ipe-1,jps:jpe-1,kps:kpe-1))
    ALLOCATE(   ph(ips:ipe-1,jps:jpe-1,kps:kpe  ))
    ALLOCATE(  phb(ips:ipe-1,jps:jpe-1,kps:kpe  ))
-   ALLOCATE(   zz(ips:ipe-1,jps:jpe-1,kps:kpe  ))
+   ALLOCATE(   zz(ips:ipe-1,jps:jpe-1,kps:kpe  )) ! height
    ALLOCATE(    w(ips:ipe-1,jps:jpe-1,kps:kpe  ))
    ALLOCATE( pres(ips:ipe-1,jps:jpe-1,kps:kpe-1))
-   ALLOCATE(    z(ips:ipe-1,jps:jpe-1,kps:kpe-1))
+   ALLOCATE(    z(ips:ipe-1,jps:jpe-1,kps:kpe-1)) ! half height
    ALLOCATE(    t(ips:ipe-1,jps:jpe-1,kps:kpe-1))
    ALLOCATE(    u(ips:ipe-1,jps:jpe-1,kps:kpe-1))
    ALLOCATE(    v(ips:ipe-1,jps:jpe-1,kps:kpe-1))
@@ -254,6 +307,17 @@ PROGRAM toof
      ENDIF
      IF ( ALLOCATED(bdy(ibdy)%point) ) THEN
        CALL precompute_openfoam_points(ibdy,xlat,xlong,ids,ide,jds,jde,ips,ipe,jps,jpe,ims,ime,jms,jme )
+
+       IF ( check_inflow ) THEN
+         ! Check inflow only
+         IF ( ibdy .NE. INTERIOR ) THEN
+           WRITE(*,*) 'Checking inflow on boundary',ibdy,' ',TRIM(bdynames(ibdy))
+           CALL check_inflow_on_boundary(ibdy, z,u,v, costheta,sintheta, &
+                                         ips,ipe-1,jps,jpe-1,kps,kpe-1, ips,ipe-1,jps,jpe-1)
+         END IF
+         CYCLE
+       ENDIF
+
        sec = sec_of_day(TRIM(Times(it)))
        sec = sec - sec_start + sec_offset
        ! create the time directory if it doesn.t already exist
@@ -304,7 +368,7 @@ PROGRAM toof
              DO ii = 0,1
                zzcol(ii,jj,kk)=zz(i+ii,j+jj,kk) - zz(i+ii,j+jj,1)   ! zz is full height at cell centers
                IF ( kk .LE. kpe-1 ) THEN
-                 zcol (ii,jj,kk)= z(i+ii,j+jj,kk) - zz(i+ii,j+jj,1)   ! z  is half hieght at cell centers
+                 zcol (ii,jj,kk)= z(i+ii,j+jj,kk) - zz(i+ii,j+jj,1)   ! z  is half height at cell centers
                ENDIF
              ENDDO
            ENDDO
@@ -321,7 +385,7 @@ PROGRAM toof
                kz(ii,jj) = 0
              ELSE
                DO k = kps+1,kpe
-                 IF (zzcol(ii,jj,k-1).LE.of_lz.AND.of_lz.LT.zzcol(ii,jj,k)) kzz(ii,jj) = k-1              ! full level
+                 IF (zzcol(ii,jj,k-1).LE.of_lz.AND.of_lz.LT.zzcol(ii,jj,k)) kzz(ii,jj) = k-1   ! full level
                  IF (k.LT.kpe) THEN
                    IF (zcol(ii,jj,k-1).LE.of_lz.AND.of_lz.LT.zcol(ii,jj,k)) kz(ii,jj) = k-1    ! half level
                  ENDIF
@@ -329,8 +393,8 @@ PROGRAM toof
              ENDIF
            ENDDO
          ENDDO
-                                                                         
-         !variables on half-levels                    open foam coords        dims of field                  dims of lat lon arrays
+
+         !variables on half-levels                    openfoam coords        dims of field                  dims of lat lon arrays
          u_new    = finterp(u   ,zcol ,xlat,xlong,kz ,of_lat,of_lon,of_lz,i,j,ips,ipe-1,jps,jpe-1,kps,kpe-1, ips,ipe-1,jps,jpe-1)
          v_new    = finterp(v   ,zcol ,xlat,xlong,kz ,of_lat,of_lon,of_lz,i,j,ips,ipe-1,jps,jpe-1,kps,kpe-1, ips,ipe-1,jps,jpe-1)
          t_new    = finterp(t   ,zcol ,xlat,xlong,kz ,of_lat,of_lon,of_lz,i,j,ips,ipe-1,jps,jpe-1,kps,kpe-1, ips,ipe-1,jps,jpe-1)
@@ -437,10 +501,12 @@ SUBROUTINE help
    CHARACTER(LEN=120) :: cmd
    CALL getarg(0, cmd)
    WRITE(*,'(/,"Usage: ", A, " ncdfile [ncdfiles*] [-startdate startdate [-offset offset]] [-ic]")') trim(cmd)
-   WRITE(*,'("       startdate   date string of form yyyy-mm-dd_hh_mm_ss or yyyy-mm-dd_hh:mm:ss")')
-   WRITE(*,'("       offset      number of seconds to start OpenFOAM directory naming (default 0)")')
-   WRITE(*,'("       -ic         program should generate init conditions too")')
-   WRITE(*,'("       -qwall      program should generate temp flux in lower bc file ",/)')
+   WRITE(*,'("       startdate     date string of form yyyy-mm-dd_hh_mm_ss or yyyy-mm-dd_hh:mm:ss")')
+   WRITE(*,'("       offset        number of seconds to start OpenFOAM directory naming (default 0)")')
+   WRITE(*,'("       -ic           program should generate init conditions too")')
+   WRITE(*,'("       -qwall        program should generate temp flux in lower bc file")')
+   WRITE(*,'("       -rotation     use specified rotation angle [deg] instead of calculating from XLAT")')
+   WRITE(*,'("       -checkInflow  instead of generating boundary data, check inflow/outflow only",/)')
    STOP
 END SUBROUTINE help
 
